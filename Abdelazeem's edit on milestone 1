@@ -1,0 +1,340 @@
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+using System.IO; //
+using System.Data; //
+
+
+namespace Small_World_Phenomenon
+{
+    class Program
+    {
+
+        public class movie_data
+        {
+
+            public string movie_name;
+
+            public List<string> actors;
+
+            public movie_data()  //constructor
+            {
+
+                actors = new List<string>();
+
+            }
+
+        }
+
+        public class queries
+        {
+
+            public string actor1, actor2;
+
+        }
+
+        // a class that contains all data necessary for a node that has been visited in the BFS
+        public class visited_node
+        {
+            public int index;
+            public int strength;
+            public int level;
+            public int predecessor_index;
+
+            public visited_node(int index, int strength, int level, int predecessor)
+            {
+                this.index = index;
+                this.strength = strength;
+                this.level = level;
+                this.predecessor_index = predecessor;
+            }
+
+            public visited_node()
+            {
+
+            }
+        }
+
+
+
+
+        public static List<movie_data> all_movies = new List<movie_data>(); //list of all movies 
+
+        static int indexing = 0; // for indexing the actors with code numbers
+
+        public static HashSet<string> all_actors = new HashSet<string>(); //to remove the movie name from the input
+
+        public static Dictionary<string, int> actors_incoding = new Dictionary<string, int>();// to index the actors name to numbers, easier access in the adjacency list
+
+        public static Dictionary<int, string> reversed_incoding = new Dictionary<int, string>();// same as above but reversed
+
+        public static List<Dictionary<int, int>> adj_list = new List<Dictionary<int, int>>(); // adjacency list; a vector of maps
+        public static List<Dictionary<string, string>> actor_to_actor_movie = new List<Dictionary<string, string>>(); //2D array of pair, works with the actor ID, displays the movies each actor played with another actor
+
+        public static void load_input_file()
+        {
+            FileStream movies_file = new FileStream("movies1.txt", FileMode.Open, FileAccess.Read); //accessing the input file
+
+            StreamReader movies_SR = new StreamReader(movies_file); //stream reading the filestream
+
+            string line = null;// to read line by line
+
+            while (movies_SR.Peek() != -1)
+            {
+
+                movie_data my_movie = new movie_data(); //data container to fill movie data in
+
+                line = movies_SR.ReadLine(); // read line by line
+
+                string[] line_splited = line.Split('/'); // splitting when you find a backslash
+
+                my_movie.movie_name = line_splited[0];//movie name will be put in the first index
+
+
+                for (int i = 1; i < line_splited.Count(); i++) // i=1 because index 0 contains the movie name
+                {
+
+                    all_actors.Add(line_splited[i]); // adds the actor to a set of all actors
+
+                    my_movie.actors.Add(line_splited[i]); // adds the actor to a set of all actors in the movie we're proccessing
+
+                }
+
+
+                all_movies.Add(my_movie); // adds the movie to a vector of all movies
+
+            }
+
+            movies_SR.Close();
+            graph_representation();
+        }
+
+        public static void graph_representation()
+        {
+            for (int i = 0; i < all_actors.Count(); i++)
+            {
+                adj_list.Add(new Dictionary<int, int>()); //adding a map in each index in the adjacency list
+                actor_to_actor_movie.Add(new Dictionary<string, string>());
+            }
+            foreach (string item in all_actors)
+            {
+
+                actors_incoding.Add(item, indexing); //giving each actor a code number
+
+                reversed_incoding.Add(indexing, item); // reverse indexing, will be needed later for representation
+
+                indexing++;
+
+            }
+
+            foreach (movie_data item in all_movies) //looping on each movie sepereately
+            {
+
+                for (int i = 0; i < item.actors.Count(); i++)
+                { //accessing each actor in that movie once as a primary index
+
+                    for (int j = 0; j < item.actors.Count(); j++) // looping through the while array to mark and increase the graph weight
+                    {
+
+                        int temp = actors_incoding[item.actors[i]];
+
+                        int temp2 = actors_incoding[item.actors[j]];
+
+                        if (item.actors[i] != item.actors[j]) // check if both comparirators are not on the same index
+                        {
+
+                            if (adj_list[temp].ContainsKey(temp2) == true) // if the key is already in this index's map
+
+                                adj_list[temp][temp2]++;// increase it's weight by one
+
+
+                            else  // if not
+                            {
+
+                                //KeyValuePair<string, string> prompt = new KeyValuePair<string, string>(reversed_incoding[temp2], item.movie_name);
+                                actor_to_actor_movie[temp].Add(reversed_incoding[temp2], item.movie_name);
+                                adj_list[temp].Add(temp2, 1); // add it to this index's map and increase the value by one
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+
+            }
+        }
+
+        static void BFS(string actor1_str, string actor2_str)
+        {
+            int source_actor = actors_incoding[actor1_str]; //source node index
+            int dest_actor = actors_incoding[actor2_str]; //destination node index
+            Dictionary<int, visited_node> all_visited_nodes = new Dictionary<int, visited_node>(); // a map of all nodes visited so far
+            Queue<int> nodes_Q = new Queue<int>(); //the queue and the searching is done using the index of the node
+            nodes_Q.Enqueue(source_actor);
+            visited_node source_node = new visited_node(source_actor, 0, 0, -1); //creating a visited node object for source node to save all it's data
+            all_visited_nodes.Add(source_actor, source_node); // add it to the map containing all visited nodes
+            bool destination_found = false;
+            visited_node dest_node = new visited_node(); //a visited_node object to contain the data of the destination node
+
+            while (nodes_Q.Any())
+            {
+                int parent_index = nodes_Q.Dequeue();
+
+                // if the destination is the same as the source actor
+                if (source_actor == dest_actor)
+                {
+                    Console.WriteLine(reversed_incoding[source_actor] + "/" + reversed_incoding[dest_actor] + "\t" + 0 + "\t" + 0 + "\t");
+                    Console.WriteLine();
+                    break;
+                }
+
+                // if the destination is found and all levels equal to it's level have been discovered
+                // all paths of minimum level to the destination have been found
+                if (destination_found && (all_visited_nodes[parent_index].level >= dest_node.level))
+                {
+                
+                    //Console.Write(source_actor + "/" + dest_actor + "\t" + dest_node.level + "\t" + dest_node.strength + "\t");
+                    Console.Write(reversed_incoding[source_actor] + "/" + reversed_incoding[dest_actor] + "\t" + dest_node.level + "\t" + dest_node.strength + "\t");
+
+                    // output is in a stack, because we're backtracking and the path is reveresed
+                    // the stack is to unreverse it
+                    Stack<int> output = new Stack<int>();
+                    visited_node current = new visited_node();
+                    output.Push(dest_node.index);
+                    current = dest_node;
+                    for (int i = 0; i < dest_node.level; i++)
+                    {
+                        //Console.Write(reversed_incoding[current.index] + "\t");
+                        current = all_visited_nodes[current.predecessor_index];
+                        output.Push(current.index);
+
+                    }
+                    //Console.WriteLine(reversed_incoding[current.index] + "\n");
+
+                    
+                    Console.Write("\t");
+
+                    int actor1Index = output.Pop();
+                    int actor2Index = output.Peek();
+                    Console.Write(actor_to_actor_movie[actor1Index][reversed_incoding[actor2Index]]);
+                    
+
+                    while (output.Count() > 1)
+                    {
+                        Console.Write(" => ");
+                        actor1Index = output.Pop();
+                        actor2Index = output.Peek();
+                        Console.Write(actor_to_actor_movie[actor1Index][reversed_incoding[actor2Index]]);
+
+                    }
+                    Console.WriteLine();
+                    Console.WriteLine();
+                    
+                    break;
+                }
+                // the destination isn't found yet OR it's found but it's level wasn't discovered completely, so there maybe
+                // a better path (greater strength) leading to it
+                foreach (KeyValuePair<int, int> item in adj_list[parent_index])
+                {
+                    visited_node current_node = new visited_node();
+                    //if the current node wasn't visited before, mark it as visited
+                    if (!all_visited_nodes.ContainsKey(item.Key))
+                    {
+                        current_node = new visited_node(item.Key, all_visited_nodes[parent_index].strength + item.Value, all_visited_nodes[parent_index].level + 1, parent_index);
+                        all_visited_nodes.Add(item.Key, current_node);
+                        nodes_Q.Enqueue(item.Key);
+                    }
+                    //if the current node's index is the destination index, mark it as found and copy it's data to the dest_node object
+                    if (item.Key == dest_actor && !destination_found)
+                    {
+                        dest_node = current_node;
+                        destination_found = true;
+                    }
+                    //if the destination node has been refound in a level that's not higher than it's original level (same minimal degree of seperation)
+                    //test this path strength to see if it's better, if it's better store this info in the dest_node object
+                    if (item.Key == dest_actor && destination_found && ((all_visited_nodes[parent_index].level + 1) <= dest_node.level))
+                    {
+                        if (all_visited_nodes[parent_index].strength + item.Value > dest_node.strength)
+                        {
+                            dest_node.strength = all_visited_nodes[parent_index].strength + item.Value;
+                            dest_node.predecessor_index = parent_index;
+                        }
+                    }
+
+                }
+            }
+        }
+        public static void load_queries()
+        {
+            // the following part is for loading queries
+
+            FileStream queries_file = new FileStream("queries1.txt", FileMode.Open, FileAccess.Read);
+
+            StreamReader queries_SR = new StreamReader(queries_file);
+
+            string actors = null;
+
+            while (queries_SR.Peek() != -1)
+            {
+
+                queries my_querie = new queries();
+
+                actors = queries_SR.ReadLine();
+
+                string[] actors_splited = actors.Split('/');
+
+                my_querie.actor1 = actors_splited[0];
+
+                my_querie.actor2 = actors_splited[1];
+
+
+                //
+                Console.WriteLine("Query" + "\t" + "Deg." + "\t" + "Rel." + "\t" + "Chain");
+                BFS(my_querie.actor1, my_querie.actor2);
+
+            }
+
+            queries_SR.Close();
+
+        }
+
+        static void Main(string[] args)
+        {
+
+
+            load_input_file();
+            load_queries();
+
+            //for (int i = 0; i < actor_to_actor_movie.Count(); i++)
+            //{
+            //    Console.Write(reversed_incoding[i]);
+            //    Console.Write("====>");
+            //    for (int j = 0; j < actor_to_actor_movie[i].Count(); j++)
+            //        Console.Write(actor_to_actor_movie[i][j]);
+            //    Console.WriteLine();
+            //}
+
+            //writes a list of actors this actor worked with and the name of the movie they worked in together
+            //uncomment to test
+
+            //for (int i = 0; i < adj_list.Count(); i++)
+            //{
+            //    Console.Write(reversed_incoding[i]);
+            //    Console.Write(" ===> ");
+            //    foreach (KeyValuePair<string, int> item in adj_list[i])
+            //        Console.Write(item);
+            //    Console.WriteLine();
+
+            //}
+            //  the commented part is for adjacency list representation, uncomment to test 
+        }
+    }
+}
+
