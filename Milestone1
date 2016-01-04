@@ -59,7 +59,7 @@ namespace Small_World_Phenomenon
             }
         }
 
-        
+
 
 
         public static List<movie_data> all_movies = new List<movie_data>(); //list of all movies 
@@ -73,7 +73,7 @@ namespace Small_World_Phenomenon
         public static Dictionary<int, string> reversed_incoding = new Dictionary<int, string>();// same as above but reversed
 
         public static List<Dictionary<int, int>> adj_list = new List<Dictionary<int, int>>(); // adjacency list; a vector of maps
-        public static List<List<KeyValuePair<string, string>>> actor_to_actor_movie = new List<List<KeyValuePair<string, string>>>(); //2D array of pair, works with the actor ID, displays the movies each actor played with another actor
+        public static List<Dictionary<string, string>> actor_to_actor_movie = new List<Dictionary<string, string>>(); //2D array of pair, works with the actor ID, displays the movies each actor played with another actor
 
         public static void load_input_file()
         {
@@ -118,7 +118,7 @@ namespace Small_World_Phenomenon
             for (int i = 0; i < all_actors.Count(); i++)
             {
                 adj_list.Add(new Dictionary<int, int>()); //adding a map in each index in the adjacency list
-                actor_to_actor_movie.Add(new List<KeyValuePair<string, string>>());
+                actor_to_actor_movie.Add(new Dictionary<string, string>());
             }
             foreach (string item in all_actors)
             {
@@ -155,8 +155,8 @@ namespace Small_World_Phenomenon
                             else  // if not
                             {
 
-                                KeyValuePair<string, string> prompt = new KeyValuePair<string, string>(reversed_incoding[temp2], item.movie_name);
-                                actor_to_actor_movie[temp].Add(prompt);
+                                //KeyValuePair<string, string> prompt = new KeyValuePair<string, string>(reversed_incoding[temp2], item.movie_name);
+                                actor_to_actor_movie[temp].Add(reversed_incoding[temp2], item.movie_name);
                                 adj_list[temp].Add(temp2, 1); // add it to this index's map and increase the value by one
 
                             }
@@ -180,7 +180,7 @@ namespace Small_World_Phenomenon
             nodes_Q.Enqueue(source_actor);
             visited_node source_node = new visited_node(source_actor, 0, 0, -1); //creating a visited node object for source node to save all it's data
             all_visited_nodes.Add(source_actor, source_node); // add it to the map containing all visited nodes
-            bool destenation_found = false;
+            bool destination_found = false;
             visited_node dest_node = new visited_node(); //a visited_node object to contain the data of the destination node
 
             while (nodes_Q.Any())
@@ -188,30 +188,41 @@ namespace Small_World_Phenomenon
                 int parent_index = nodes_Q.Dequeue();
                 // if the destination is found and all levels equal to it's level have been discovered
                 // all paths of minimum level to the destination have been found
-                if (destenation_found && (all_visited_nodes[parent_index].level >= dest_node.level))
+                if (destination_found && (all_visited_nodes[parent_index].level >= dest_node.level))
                 {
-                    Console.Write(reversed_incoding[source_actor] + "/" + reversed_incoding[dest_actor] + "\t" + dest_node.level + "\t" + dest_node.strength + "\t" );
+
+                    //Console.Write(source_actor + "/" + dest_actor + "\t" + dest_node.level + "\t" + dest_node.strength + "\t");
+                    Console.Write(reversed_incoding[source_actor] + "/" + reversed_incoding[dest_actor] + "\t" + dest_node.level + "\t" + dest_node.strength + "\t");
 
                     // output is in a stack, because we're backtracking and the path is reveresed
                     // the stack is to unreverse it
                     Stack<int> output = new Stack<int>();
-                    visited_node current=new visited_node();
+                    visited_node current = new visited_node();
                     output.Push(dest_node.index);
                     current = dest_node;
-                    for (int i = 0; i < dest_node.level;i++ )
+                    for (int i = 0; i < dest_node.level; i++)
                     {
                         current = all_visited_nodes[current.predecessor_index];
                         output.Push(current.index);
-                        
+
                     }
-                  /* while (output.Count()>1)
+                    
+
+                    int actor1Index = output.Pop();
+                    int actor2Index = output.Peek();
+                    Console.Write(actor_to_actor_movie[actor1Index][reversed_incoding[actor2Index]]);
+
+
+                    while (output.Count() > 1)
                     {
-                        int actor1Index = output.Pop();
-                        int actor2Index = output.Peek();
-                        Console.Write(actor_to_actor_movie[actor1Index][actor1Index]);
-                    }*/
-                        Console.WriteLine();
-                        Console.WriteLine();
+                        Console.Write(" => ");
+                        actor1Index = output.Pop();
+                        actor2Index = output.Peek();
+                        Console.Write(actor_to_actor_movie[actor1Index][reversed_incoding[actor2Index]]);
+
+                    }
+                    Console.WriteLine();
+                    Console.WriteLine();
                     break;
                 }
                 // the destination isn't found yet OR it's found but it's level wasn't discovered completely, so there maybe
@@ -227,19 +238,19 @@ namespace Small_World_Phenomenon
                         nodes_Q.Enqueue(item.Key);
                     }
                     //if the current node's index is the destination index, mark it as found and copy it's data to the dest_node object
-                    if (item.Key == dest_actor && !destenation_found)
+                    if (item.Key == dest_actor && !destination_found)
                     {
                         dest_node = current_node;
-                        destenation_found = true;
+                        destination_found = true;
                     }
                     //if the destination node has been refound in a level that's not higher than it's original level (same minimal degree of seperation)
                     //test this path strength to see if it's better, if it's better store this info in the dest_node object
-                    if (item.Key == dest_actor && destenation_found && ((all_visited_nodes[parent_index].level + 1) <= dest_node.level))
+                    if (item.Key == dest_actor && destination_found && ((all_visited_nodes[parent_index].level + 1) <= dest_node.level))
                     {
                         if (all_visited_nodes[parent_index].strength + item.Value > dest_node.strength)
                             dest_node.strength = all_visited_nodes[parent_index].strength + item.Value;
                     }
-                  
+
                 }
             }
         }
